@@ -108,8 +108,6 @@ class FacebookScrapper:
                 pass
         #Ekstrak data 
         tgl_feeds = self.driver.find_elements(By.XPATH,'//div[@class="story_body_container"]/header/div[2]/div/div/div/div/a/abbr') 
-        desc_feeds = self.driver.find_elements(By.XPATH,'//span[@class="text_exposed"]')
-        desc1_feeds = self.driver.find_elements(By.XPATH,'//span[@class="text_exposed_show"]')
         for i in range(len(tgl_feeds)):
             ds = ""
             result += "Tanggal :"+tgl_feeds[i].text+"\n"
