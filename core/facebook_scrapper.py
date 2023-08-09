@@ -113,7 +113,6 @@ class FacebookScrapper:
         for i in range(len(tgl_feeds)):
             ds = ""
             result += "Tanggal :"+tgl_feeds[i].text+"\n"
-           
         return result
 
             
