@@ -20,7 +20,8 @@ from .constans.facebook_constants import (
     FB_MOBILE_BASE_URL,
     FB_W3_BASE_URL,
 
-    FB_PROFILE_BASE_URL
+    FB_PROFILE_BASE_URL,
+    FB_MOBILE_PROFILE_BASE_URL
 )
 
 
@@ -39,7 +40,7 @@ class FacebookScrapper:
     def run(self):
         service = ChromeService(executable_path=self.path)
         self.driver = webdriver.Chrome(options=self.options,service=service)
-        self.driver.get(FB_BASE_URL)
+        self.driver.get(FB_MOBILE_BASE_URL)
         if os.path.exists(os.path.abspath("core\drivers\cookie\cookie.pkl")):
             cookies = pickle.load(open(os.path.abspath("core\drivers\cookie\cookie.pkl"),'rb'))
             for cookie in cookies:
@@ -54,10 +55,10 @@ class FacebookScrapper:
     def connect(self,email,password):
         self.run()
         try:
-            self.wait.until(EC.visibility_of_element_located((By.ID,'email')))
-            self.wait.until(EC.visibility_of_element_located((By.ID,'pass')))
+            self.wait.until(EC.visibility_of_element_located((By.NAME,'email')))
+            self.wait.until(EC.visibility_of_element_located((By.NAME,'pass')))
         except NoSuchElementException:
-            driver.get(FB_BASE_URL)
+            driver.get(FB_MOBILE_BASE_URL)
             return "Connected"
         finally:
             if os.path.exists(os.path.abspath("core\drivers\cookie\cookie.pkl")) == False:
@@ -68,16 +69,16 @@ class FacebookScrapper:
                 return "Connected"
     
     def login(self,email,password):
-        p = self.driver.find_element(By.ID, "email")
+        p = self.driver.find_element(By.NAME, "email")
         p.send_keys(email)
-        p = self.driver.find_element(By.ID, "pass")
+        p = self.driver.find_element(By.NAME, "pass")
         p.send_keys(password)
         p.send_keys(Keys.RETURN)
         try:
-            self.wait.until(EC.visibility_of_element_located((By.XPATH,'//*[@id="mount_0_0_H5"]')))
+            waits = WebDriverWait(self.driver,3)
+            waits.until(EC.visibility_of_element_located((By.XPATH,'//*[@class="storyStream"]')))
         except NoSuchElementException:
-            self.driver.get(FB_BASE_URL)
-            return "Not Connected"
+            self.driver.get(FB_MOBILE_BASE_URL)
         finally:
             self.cookies = self.driver.get_cookies()
             self.connected = True
@@ -86,21 +87,33 @@ class FacebookScrapper:
     def getPosts(self):
         if self.driver == None:
             self.run()
-        self.driver.get(FB_PROFILE_BASE_URL)
+        self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
         previous_height = self.driver.execute_script('return document.body.scrollHeight')
         while True:
             self.driver.execute_script('window.scrollTo(0,document.body.scrollHeight)')
-            time.sleep(2)
+            time.sleep(5)
             new_height = self.driver.execute_script('return document.body.scrollHeight')
             if new_height == previous_height:
                 break
             previous_height = new_height
-        container_post = self.driver.find_elements(By.XPATH,'//div[@class="x1yztbdb x1n2onr6 xh8yej3 x1ja2u2z"]')
+        #Buka Semua Data
+        feeds = self.driver.find_elements(By.XPATH,'//div[@class="feed"]/section/article')
         result = ""
-        for post in all_posts:
-            parent = post.find_element(By.XPATH,'..')
-            links = post.find_element(By.XPATH,'//a[@class="x1i10hfl xjbqb8w x6umtig x1b1mbwd xaqea5y xav7gou x9f619 x1ypdohk xt0psk2 xe8uvvx xdj266r x11i5rnm xat24cr x1mh8g0r xexx8yu x4uap5 x18d9i69 xkhd6sd x16tdsg8 x1hl2dhg xggy1nq x1a2a7pz xt0b8zv xzsf02u x1s688f"]')
-            result += "Links 1 = "+str(links.text)+" "
+        for feed in feeds:
+            try:
+                mores = feed.find_elements(By.XPATH,'//span[@data-sigil="more"]/a')
+                for more in mores:
+                    more.click()
+            except:
+                pass
+        #Ekstrak data 
+        tgl_feeds = self.driver.find_elements(By.XPATH,'//div[@class="story_body_container"]/header/div[2]/div/div/div/div/a/abbr') 
+        desc_feeds = self.driver.find_elements(By.XPATH,'//span[@class="text_exposed"]')
+        desc1_feeds = self.driver.find_elements(By.XPATH,'//span[@class="text_exposed_show"]')
+        for i in range(len(tgl_feeds)):
+            ds = ""
+            result += "Tanggal :"+tgl_feeds[i].text+"\n"
+           
         return result
 
             
