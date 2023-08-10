@@ -13,6 +13,7 @@ import pickle
 import os
 import time
 import pandas as pd
+import facebook_scraper as fs
 
 from .constans.facebook_constants import (
     FB_BASE_URL,
@@ -35,7 +36,7 @@ class FacebookScrapper:
     wait = None
     cookies = None
     connected = False
-    def __init__(self,headless=False):
+    def __init__(self,headless=True):
         self.options.headless = headless
     def run(self):
         service = ChromeService(executable_path=self.path)
@@ -47,6 +48,8 @@ class FacebookScrapper:
                 self.driver.add_cookie(cookie)
         self.wait = WebDriverWait(self.driver,20)
     def close(self):
+        if self.driver == None:
+            return "Already Closed"
         self.driver.quit()
 
     def getPath(self):
@@ -78,15 +81,16 @@ class FacebookScrapper:
             waits = WebDriverWait(self.driver,3)
             waits.until(EC.visibility_of_element_located((By.XPATH,'//*[@class="storyStream"]')))
         except NoSuchElementException:
-            self.driver.get(FB_MOBILE_BASE_URL)
+            return "Not Connected"
         finally:
             self.cookies = self.driver.get_cookies()
             self.connected = True
             pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookie.pkl"),"wb"))
             return "Connected"
+           
     def getPosts(self):
         if self.driver == None:
-            self.run()
+            return "Not Connected"
         self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
         previous_height = self.driver.execute_script('return document.body.scrollHeight')
         while True:
@@ -96,21 +100,30 @@ class FacebookScrapper:
             if new_height == previous_height:
                 break
             previous_height = new_height
-        #Buka Semua Data
-        feeds = self.driver.find_elements(By.XPATH,'//div[@class="feed"]/section/article')
-        result = ""
-        for feed in feeds:
-            try:
-                mores = feed.find_elements(By.XPATH,'//span[@data-sigil="more"]/a')
-                for more in mores:
-                    more.click()
-            except:
-                pass
         #Ekstrak data 
-        tgl_feeds = self.driver.find_elements(By.XPATH,'//div[@class="story_body_container"]/header/div[2]/div/div/div/div/a/abbr') 
-        for i in range(len(tgl_feeds)):
-            ds = ""
-            result += "Tanggal :"+tgl_feeds[i].text+"\n"
+        result = ""
+        posts = []
+        link_feeds = self.driver.find_elements(By.XPATH,'//div[@class="story_body_container"]/div[1]/a') 
+        for i in range(len(link_feeds)):            
+            try:
+                if(link_feeds[i].get_attribute('href') != None):
+                    link = str(link_feeds[i].get_attribute('href'))
+                    start = link.index("story.php?story_fbid=") + 21
+                    end = link.index("&id=")
+                    if "&substory_index=" in link[start:end]:
+                        end = link.index("&substory_index=")
+                    gen = fs.get_posts(
+                        post_urls=[link[start:end]],
+                        options={"comments": 100, "progress": True}
+                    )
+                    post = next(gen)
+                    posts.append(post)
+                else:
+                    posts.append('Postingan Tidak Dapat Di Temukan atau dihapus')
+            except IndexError:
+                pass
+        # Post
+        result = posts
         return result
 
             
