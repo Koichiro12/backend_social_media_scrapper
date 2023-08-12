@@ -36,21 +36,20 @@ class FacebookScrapper:
     wait = None
     cookies = None
     connected = False
-    def __init__(self,headless=True):
+    def __init__(self,headless=False):
         self.options.headless = headless
     def run(self):
         service = ChromeService(executable_path=self.path)
         self.driver = webdriver.Chrome(options=self.options,service=service)
         self.driver.get(FB_MOBILE_BASE_URL)
-        if os.path.exists(os.path.abspath("core\drivers\cookie\cookie.pkl")):
-            cookies = pickle.load(open(os.path.abspath("core\drivers\cookie\cookie.pkl"),'rb'))
-            for cookie in cookies:
-                self.driver.add_cookie(cookie)
+        if os.path.exists(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl")):
+             os.unlink(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"))
         self.wait = WebDriverWait(self.driver,20)
     def close(self):
-        if self.driver == None:
-            return "Already Closed"
+        os.unlink(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"))
         self.driver.quit()
+        self.connected = False
+        return "Disconnected"
 
     def getPath(self):
         return self.path  
@@ -64,7 +63,7 @@ class FacebookScrapper:
             driver.get(FB_MOBILE_BASE_URL)
             return "Connected"
         finally:
-            if os.path.exists(os.path.abspath("core\drivers\cookie\cookie.pkl")) == False:
+            if os.path.exists(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl")) == False:
                 return self.login(email, password)
             else:
                 self.driver.refresh()
@@ -85,11 +84,11 @@ class FacebookScrapper:
         finally:
             self.cookies = self.driver.get_cookies()
             self.connected = True
-            pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookie.pkl"),"wb"))
+            pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"),"wb"))
             return "Connected"
            
     def getPosts(self):
-        if self.driver == None:
+        if self.connected == False:
             return "Not Connected"
         self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
         previous_height = self.driver.execute_script('return document.body.scrollHeight')
@@ -114,7 +113,7 @@ class FacebookScrapper:
                         end = link.index("&substory_index=")
                     gen = fs.get_posts(
                         post_urls=[link[start:end]],
-                        options={"comments": 100, "progress": True}
+                        options={"comments": True, "progress": True}
                     )
                     post = next(gen)
                     posts.append(post)

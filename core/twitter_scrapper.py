@@ -20,3 +20,8 @@ class TwitterScrapper:
     wait = None
     def __init__(self,headless = False):
         self.options.headless = headless
+    
+    def connect(self):
+        return "Connected"
+    def close(self):
+        return "Close"
