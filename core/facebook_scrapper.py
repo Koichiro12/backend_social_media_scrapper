@@ -36,6 +36,7 @@ class FacebookScrapper:
     wait = None
     cookies = None
     connected = False
+    posts = []
     def __init__(self,headless=False):
         self.options.headless = headless
     def run(self):
@@ -49,6 +50,7 @@ class FacebookScrapper:
         os.unlink(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"))
         self.driver.quit()
         self.connected = False
+        self.posts = []
         return "Disconnected"
 
     def getPath(self):
@@ -82,12 +84,48 @@ class FacebookScrapper:
         except NoSuchElementException:
             return "Not Connected"
         finally:
-            self.cookies = self.driver.get_cookies()
-            self.connected = True
-            pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"),"wb"))
-            return "Connected"
-           
-    def getPosts(self):
+            try:
+                self.cookies = self.driver.get_cookies()
+                self.connected = True
+                pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"),"wb"))
+                return "Connected"
+            finally:
+                self.getPostInBackground()
+    
+    def getPostInBackground(self):
+        if len(self.posts) <= 0:
+            self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
+            previous_height = self.driver.execute_script('return document.body.scrollHeight')
+            while True:
+                self.driver.execute_script('window.scrollTo(0,document.body.scrollHeight)')
+                time.sleep(5)
+                new_height = self.driver.execute_script('return document.body.scrollHeight')
+                if new_height == previous_height:
+                    break
+                previous_height = new_height
+            #Ekstrak data 
+            result = ""
+            link_feeds = self.driver.find_elements(By.XPATH,'//div[@class="story_body_container"]/div[1]/a') 
+            for i in range(len(link_feeds)):            
+                try:
+                    if(link_feeds[i].get_attribute('href') != None):
+                        link = str(link_feeds[i].get_attribute('href'))
+                        start = link.index("story.php?story_fbid=") + 21
+                        end = link.index("&id=")
+                        if "&substory_index=" in link[start:end]:
+                            end = link.index("&substory_index=")
+                        gen = fs.get_posts(
+                            post_urls=[link[start:end]],
+                            options={"comments": True, "progress": True}
+                        )
+                        post = next(gen)
+                        self.posts.append(post)
+                    else:
+                        posts.append('Postingan Tidak Dapat Di Temukan atau dihapus')
+                except IndexError:
+                    pass
+    
+    def updateRecentPosts(self):
         if self.connected == False:
             return "Not Connected"
         self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
@@ -101,7 +139,6 @@ class FacebookScrapper:
             previous_height = new_height
         #Ekstrak data 
         result = ""
-        posts = []
         link_feeds = self.driver.find_elements(By.XPATH,'//div[@class="story_body_container"]/div[1]/a') 
         for i in range(len(link_feeds)):            
             try:
@@ -116,13 +153,49 @@ class FacebookScrapper:
                         options={"comments": True, "progress": True}
                     )
                     post = next(gen)
-                    posts.append(post)
+                    self.posts.append(post)
+                else:
+                    posts.append('Postingan Tidak Dapat Di Temukan atau dihapus')
+            except IndexError:
+                pass
+
+    def getPosts(self):
+        if self.connected == False:
+            return "Not Connected"
+        if len(self.posts) > 0:
+            return self.posts
+        self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
+        previous_height = self.driver.execute_script('return document.body.scrollHeight')
+        while True:
+            self.driver.execute_script('window.scrollTo(0,document.body.scrollHeight)')
+            time.sleep(5)
+            new_height = self.driver.execute_script('return document.body.scrollHeight')
+            if new_height == previous_height:
+                break
+            previous_height = new_height
+        #Ekstrak data 
+        result = ""
+        link_feeds = self.driver.find_elements(By.XPATH,'//div[@class="story_body_container"]/div[1]/a') 
+        for i in range(len(link_feeds)):            
+            try:
+                if(link_feeds[i].get_attribute('href') != None):
+                    link = str(link_feeds[i].get_attribute('href'))
+                    start = link.index("story.php?story_fbid=") + 21
+                    end = link.index("&id=")
+                    if "&substory_index=" in link[start:end]:
+                        end = link.index("&substory_index=")
+                    gen = fs.get_posts(
+                        post_urls=[link[start:end]],
+                        options={"comments": True, "progress": True}
+                    )
+                    post = next(gen)
+                    self.posts.append(post)
                 else:
                     posts.append('Postingan Tidak Dapat Di Temukan atau dihapus')
             except IndexError:
                 pass
         # Post
-        result = posts
+        result = self.posts
         return result
 
             

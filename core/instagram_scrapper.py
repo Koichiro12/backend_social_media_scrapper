@@ -28,7 +28,7 @@ class InstagramScrapper:
     cookies = None
     connected = False
     username = None
-
+    posts = []
     def __init__(self,headless=False):
         self.options.headless = headless               
 
@@ -83,8 +83,8 @@ class InstagramScrapper:
     def getPosts(self):
         if self.connected == False:
             return "Not Connected"
-        result = []
-        result_posts = []
+        if len(self.posts) > 0:
+            return self.posts
         self.driver.get(IG_BASE_URL+self.username+'/')
         previous_height = self.driver.execute_script('return document.body.scrollHeight')
         while True:
@@ -93,19 +93,20 @@ class InstagramScrapper:
             posts = self.driver.find_elements(By.TAG_NAME,'a')
             for post in posts:
                 link_post = post.get_attribute('href')
-                if '/p/' in link_post and link_post not in result_posts:
-                    result_posts.append(link_post)
+                if '/p/' in link_post and link_post not in self.posts:                    
+                    self.posts.append(link_post)
             new_height = self.driver.execute_script('return document.body.scrollHeight')
             if new_height == previous_height:
                 break
             previous_height = new_height
-        return result
+        return self.posts
     def close(self):
         if self.driver == None:
             return "Already Disconnected"
         os.unlink(os.path.abspath("core\drivers\cookie\cookies_instagram.pkl"))
         self.connected = False
         self.username = None
+        self.posts = []
         self.driver.quit()
         return "Disconnected"
     
