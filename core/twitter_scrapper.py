@@ -21,7 +21,11 @@ class TwitterScrapper:
     def __init__(self,headless = False):
         self.options.headless = headless
     
-    def connect(self):
-        return "Connected"
+    def connect(self,username,password):
+        self.connected = True
+        return '<span class="badge badge-success">Connected</span>'
     def close(self):
-        return "Close"
+        self.connected = False
+        return '<span class="badge badge-danger">Disconnected</span>'
+    def getPosts(self):
+        self.connected

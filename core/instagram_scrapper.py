@@ -47,14 +47,14 @@ class InstagramScrapper:
             self.wait.until(EC.visibility_of_element_located((By.NAME,'password')))
         except NoSuchElementException:
             self.driver.get(IG_BASE_URL)
-            return "Connected"
+            return '<span class="badge badge-success">Connected</span>'
         finally:
             if os.path.exists(os.path.abspath("core\drivers\cookie\cookies_instagram.pkl")) == False:
                 return self.login(username, password)
             else:
                 self.driver.refresh()
                 self.connected = True
-                return "Connected"
+                return '<span class="badge badge-success">Connected</span>'
     
     def login(self,username,password):
         p = self.driver.find_element(By.NAME, "username")
@@ -72,7 +72,8 @@ class InstagramScrapper:
                 self.cookies = self.driver.get_cookies()
                 self.connected = True
                 pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_instagram.pkl"),"wb"))
-                return "Connected As "+self.username
+                self.driver.get(IG_BASE_URL+self.username+'/')
+                return '<span class="badge badge-success">Connected As '+self.username+'</span>'
         except NoSuchElementException:
             self.driver.quit()
             return "Can't Connect, Please Check Your Username Or Password"
@@ -102,11 +103,11 @@ class InstagramScrapper:
         return self.posts
     def close(self):
         if self.driver == None:
-            return "Already Disconnected"
+            return '<span class="badge badge-danger">Disconnected</span>'
         os.unlink(os.path.abspath("core\drivers\cookie\cookies_instagram.pkl"))
         self.connected = False
         self.username = None
         self.posts = []
         self.driver.quit()
-        return "Disconnected"
+        return '<span class="badge badge-danger">Disconnected</span>'
     

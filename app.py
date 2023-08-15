@@ -6,7 +6,6 @@ from core.instagram_scrapper import InstagramScrapper
 from core.twitter_scrapper import TwitterScrapper
 app = Flask(__name__)
 
-
 fb = FacebookScrapper()
 ig = InstagramScrapper()
 twitter = TwitterScrapper()
@@ -27,7 +26,7 @@ def loginFacebook():
         email = request.form['email']
         password = request.form['password']
         return fb.connect(email, password)
-    return "Already Connected"
+    return '<span class="badge badge-success">Connected</span>'
 
 @app.route('/connect/instagram',methods=['POST'])
 def loginInstagram():
@@ -35,20 +34,33 @@ def loginInstagram():
         username = request.form['username']
         password = request.form['password']
         return ig.connect(username, password)
-    return "Already Connected"
+    return '<span class="badge badge-success">Connected</span>'
+@app.route('/connect/twitter',methods=['POST'])
+def loginTwitter():
+    if twitter.connected == False:
+        username = request.form['username']
+        password = request.form['password']
+        return twitter.connect(username, password)
+    return '<span class="badge badge-success">Connected</span>'
+
 
 @app.route('/disconnect/facebook')
 def disconnect():
     if fb.connected == True:
         return fb.close()
-    return "Already Disconnected"
+    return '<span class="badge badge-danger">Disconnected</span>'
  
 @app.route('/disconnect/instagram')
 def disconnectInstagram():
     if ig.connected == True:
         return ig.close()
-    return "Already Disconnected"
- 
+    return '<span class="badge badge-danger">Disconnected</span>'
+@app.route('/disconnect/twitter')
+def disconnectTwitter():
+    if twitter.connected == True:
+        return twitter.close()
+    return '<span class="badge badge-danger">Disconnected</span>'
+
 @app.route('/getPosts/facebook')
 def getFacebookPosts():
     return fb.getPosts()
@@ -59,12 +71,31 @@ def getInstagramPosts():
 
 @app.route('/getPosts/twitter')
 def getTwitterPosts():
-    return ig.getPosts()
+    return twitter.getPosts()
+
+@app.route('/getStatus/facebook')
+def getFacebookStatus():
+    if fb.connected == True:
+        return '<span class="badge badge-success">Connected</span>'
+    return '<span class="badge badge-danger">Disconnected</span>'
+   
+@app.route('/getStatus/instagram')
+def getInstagramStatus():
+    if ig.connected == True:
+        return '<span class="badge badge-success">Connected</span>'
+    return '<span class="badge badge-danger">Disconnected</span>'
+
+@app.route('/getStatus/twitter')
+def getTwitterStatus():
+    if twitter.connected == True:
+        return '<span class="badge badge-success">Connected</span>'
+    return '<span class="badge badge-danger">Disconnected</span>'
+
 
 @app.route('/search/<keyword>',methods=['POST'])
 def search(keyword):
     return "Search :"+keyword
-
+    
 if __name__ == '__main__':
     try:
         app.run()

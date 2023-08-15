@@ -51,7 +51,7 @@ class FacebookScrapper:
         self.driver.quit()
         self.connected = False
         self.posts = []
-        return "Disconnected"
+        return '<span class="badge badge-danger">Disconnected</span>'
 
     def getPath(self):
         return self.path  
@@ -63,14 +63,14 @@ class FacebookScrapper:
             self.wait.until(EC.visibility_of_element_located((By.NAME,'pass')))
         except NoSuchElementException:
             driver.get(FB_MOBILE_BASE_URL)
-            return "Connected"
+            return '<span class="badge badge-success">Connected</span>'
         finally:
             if os.path.exists(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl")) == False:
                 return self.login(email, password)
             else:
                 self.driver.refresh()
                 self.connected = True
-                return "Connected"
+                return '<span class="badge badge-success">Connected</span>'
     
     def login(self,email,password):
         p = self.driver.find_element(By.NAME, "email")
@@ -88,9 +88,9 @@ class FacebookScrapper:
                 self.cookies = self.driver.get_cookies()
                 self.connected = True
                 pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"),"wb"))
-                return "Connected"
+                self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
             finally:
-                self.getPostInBackground()
+                return '<span class="badge badge-success">Connected</span>'
     
     def getPostInBackground(self):
         if len(self.posts) <= 0:
