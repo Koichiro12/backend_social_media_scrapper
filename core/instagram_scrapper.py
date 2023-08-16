@@ -1,6 +1,8 @@
 import logging
 import requests
+from time import sleep
 import pandas as pd
+import json
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -8,7 +10,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException,WebDriverException
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 import pickle
 import os
 import time
@@ -22,6 +25,7 @@ class InstagramScrapper:
 
 
     options = Options()
+    d = DesiredCapabilities.CHROME
     driver = None
     path = os.path.abspath('core\drivers\chromedriver.exe')
     wait = None
@@ -30,7 +34,10 @@ class InstagramScrapper:
     username = None
     posts = []
     def __init__(self,headless=False):
-        self.options.headless = headless               
+        self.d['goog:loggingPrefs'] = { 'performance':'ALL' }
+        self.options.set_capability('goog:loggingPrefs', { 'performance':'ALL' })
+        self.options.headless = headless
+        
 
     def run(self):  
         service = ChromeService(executable_path=self.path)
@@ -84,23 +91,30 @@ class InstagramScrapper:
     def getPosts(self):
         if self.connected == False:
             return "Not Connected"
-        if len(self.posts) > 0:
-            return self.posts
         self.driver.get(IG_BASE_URL+self.username+'/')
-        previous_height = self.driver.execute_script('return document.body.scrollHeight')
-        while True:
-            self.driver.execute_script('window.scrollTo(0,document.body.scrollHeight)')
-            time.sleep(10)
-            posts = self.driver.find_elements(By.TAG_NAME,'a')
-            for post in posts:
-                link_post = post.get_attribute('href')
-                if '/p/' in link_post and link_post not in self.posts:                    
-                    self.posts.append(link_post)
-            new_height = self.driver.execute_script('return document.body.scrollHeight')
-            if new_height == previous_height:
+        sleep(5)
+        logs_raw = self.driver.get_log("performance")
+        logs = [json.loads(lr["message"])["message"] for lr in logs_raw]
+        for log in filter(self.log_filter, logs):
+            request_id = log["params"]["requestId"]
+            resp_url = log["params"]["response"]["url"]
+            if "/web_profile_info/?username=" in resp_url:
+                try:
+                    data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
+                    return json.loads(data["body"])
+                except WebDriverException:
+                    return "Oops,Something Went Wrong!,Please Try again"            
                 break
-            previous_height = new_height
-        return self.posts
+        return "Oops,Something Went Wrong!,Please Try again"
+    @staticmethod
+    def log_filter(log_):
+        return (
+            # is an actual response
+            log_["method"] == "Network.responseReceived"
+            # and json
+            and "json" in log_["params"]["response"]["mimeType"]
+        )
+    
     def close(self):
         if self.driver == None:
             return '<span class="badge badge-danger">Disconnected</span>'

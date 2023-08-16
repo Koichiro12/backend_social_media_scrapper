@@ -69,6 +69,7 @@ def getFacebookPosts():
 def getInstagramPosts():
     return ig.getPosts()
 
+
 @app.route('/getPosts/twitter')
 def getTwitterPosts():
     return twitter.getPosts()
@@ -92,10 +93,7 @@ def getTwitterStatus():
     return '<span class="badge badge-danger">Disconnected</span>'
 
 
-@app.route('/search/<keyword>',methods=['POST'])
-def search(keyword):
-    return "Search :"+keyword
-    
+
 if __name__ == '__main__':
     try:
         app.run()
