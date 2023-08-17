@@ -37,8 +37,10 @@ class FacebookScrapper:
     cookies = None
     connected = False
     posts = []
+    status = None
     def __init__(self,headless=False):
         self.options.headless = headless
+        self.status = '<span class="badge badge-danger">Disconnected</span>'
     def run(self):
         service = ChromeService(executable_path=self.path)
         self.driver = webdriver.Chrome(options=self.options,service=service)
@@ -47,22 +49,28 @@ class FacebookScrapper:
              os.unlink(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"))
         self.wait = WebDriverWait(self.driver,20)
     def close(self):
+        self.status = '<span class="badge badge-warning">Disconnecting...</span>'
+        if self.connect == True:
+             self.status = '<span class="badge badge-danger">Disconnected</span>'
         os.unlink(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"))
         self.driver.quit()
         self.connected = False
         self.posts = []
+        self.status = '<span class="badge badge-danger">Disconnected</span>'
         return '<span class="badge badge-danger">Disconnected</span>'
 
     def getPath(self):
         return self.path  
     
     def connect(self,email,password):
+        self.status = '<span class="badge badge-warning">Connecting To Facebook...</span>'
         self.run()
         try:
             self.wait.until(EC.visibility_of_element_located((By.NAME,'email')))
             self.wait.until(EC.visibility_of_element_located((By.NAME,'pass')))
         except NoSuchElementException:
             driver.get(FB_MOBILE_BASE_URL)
+            self.status = '<span class="badge badge-success">Connected</span>'
             return '<span class="badge badge-success">Connected</span>'
         finally:
             if os.path.exists(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl")) == False:
@@ -70,6 +78,7 @@ class FacebookScrapper:
             else:
                 self.driver.refresh()
                 self.connected = True
+                self.status = '<span class="badge badge-success">Connected</span>'
                 return '<span class="badge badge-success">Connected</span>'
     
     def login(self,email,password):
@@ -82,7 +91,9 @@ class FacebookScrapper:
             waits = WebDriverWait(self.driver,3)
             waits.until(EC.visibility_of_element_located((By.XPATH,'//*[@class="storyStream"]')))
         except NoSuchElementException:
-            return "Not Connected"
+            self.status = '<span class="badge badge-danger">Disconnected</span>'
+            self.driver.quit()
+            return '<span class="badge badge-danger">Disconnected</span>'
         finally:
             try:
                 self.cookies = self.driver.get_cookies()
@@ -90,6 +101,7 @@ class FacebookScrapper:
                 pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"),"wb"))
                 self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
             finally:
+                self.status = '<span class="badge badge-success">Connected</span>'
                 return '<span class="badge badge-success">Connected</span>'
     
     def getPostInBackground(self):

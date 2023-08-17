@@ -25,9 +25,11 @@ class TwitterScrapper:
     cookies = None
     wait = None
     username = None
+    status = None
     def __init__(self,headless = False):
         self.options.set_capability('goog:loggingPrefs', { 'performance':'ALL' })
         self.options.headless = headless
+        self.status = '<span class="badge badge-danger">Disconnected</span>'
     
     def run(self):
         service = ChromeService(executable_path=self.path)
@@ -38,11 +40,13 @@ class TwitterScrapper:
         self.wait = WebDriverWait(self.driver,20)
 
     def connect(self,username,password):
+        self.status = '<span class="badge badge-warning">Connecting To Twitter...</span>'
         self.run()
         try:
             self.wait.until(EC.visibility_of_element_located((By.XPATH,'//a[@href="/login"]')))
         except NoSuchElementException:
             self.driver.get(TWITTER_BASE_URL)
+            self.status = '<span class="badge badge-success">Connected</span>'
             return '<span class="badge badge-success">Connected</span>'
         finally:
             if os.path.exists(os.path.abspath("core\drivers\cookie\cookies_twitter.pkl")) == False:
@@ -50,6 +54,7 @@ class TwitterScrapper:
             else:
                 self.driver.refresh()
                 self.connected = True
+                self.status = '<span class="badge badge-success">Connected</span>'
                 return '<span class="badge badge-success">Connected</span>'
     def login(self,username,password):
         self.driver.get(TWITTER_LOGIN_URL)
@@ -60,7 +65,8 @@ class TwitterScrapper:
                 p.send_keys(username)
                 p.send_keys(Keys.RETURN)
         except NoSuchElementException:
-            return "TimeOut,Can't Connected" 
+            self.status = '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
+            return '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
         try:
             waits = WebDriverWait(self.driver,5)
             wait = waits.until(EC.visibility_of_element_located((By.XPATH,'//data-testid[@href="ocfEnterTextTextInput"]')))
@@ -79,7 +85,8 @@ class TwitterScrapper:
                 p.send_keys(password)
                 p.send_keys(Keys.RETURN)
         except NoSuchElementException:
-            return "TimeOut,Can't Connected" 
+            self.status = '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
+            return '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
         try:
             waits = WebDriverWait(self.driver,10)
             wait = waits.until(EC.visibility_of_element_located((By.XPATH,'//a[@href="/home"]')))
@@ -91,21 +98,27 @@ class TwitterScrapper:
                 self.connected = True
                 pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_twitter.pkl"),"wb"))
                 self.driver.get(TWITTER_BASE_URL+self.username)
+                self.status = '<span class="badge badge-success">Connected As '+self.username+'</span>'
                 return '<span class="badge badge-success">Connected As '+self.username+'</span>'
         except NoSuchElementException:
             self.driver.quit()
-            return "Can't Connect, Please Check Your Username Or Password"
+            self.status = '<span class="badge badge-success">Can"t Connect, Please Check Your Username Or Password</span>'
+            return '<span class="badge badge-success">Can"t Connect, Please Check Your Username Or Password</span>'
         except TimeoutException:
             self.driver.quit()
+            self.status = '<span class="badge badge-success">TimeOut,Cant Connected</span>'
             return "TimeOut,Can't Connected" 
     def close(self):
+        self.status = '<span class="badge badge-danger">Disconnecting...</span>'
         if self.driver == None:
+            self.status = '<span class="badge badge-danger">Disconnected</span>'
             return '<span class="badge badge-danger">Disconnected</span>'
         os.unlink(os.path.abspath("core\drivers\cookie\cookies_twitter.pkl"))
         self.connected = False
         self.username = None
         self.posts = []
         self.driver.quit()
+        self.status = '<span class="badge badge-danger">Disconnected</span>'
         return '<span class="badge badge-danger">Disconnected</span>'
     def getPosts(self):
         self.driver.get(TWITTER_BASE_URL+self.username)
