@@ -9,6 +9,8 @@ app = Flask(__name__)
 fb = FacebookScrapper()
 ig = InstagramScrapper()
 twitter = TwitterScrapper()
+
+
 def cleanup():
     fb.close()
     ig.close()

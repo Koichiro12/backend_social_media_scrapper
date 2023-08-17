@@ -19,8 +19,6 @@ from .constans.twitter_constants import (
 )
 
 class TwitterScrapper:
-
-    
     options = Options()
     path = os.path.abspath('core\drivers\chromedriver.exe')
     connected = False
