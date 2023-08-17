@@ -101,6 +101,7 @@ class InstagramScrapper:
             if "/web_profile_info/?username=" in resp_url:
                 try:
                     data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
+                    self.posts = json.loads(data['body'])
                     return json.loads(data["body"])
                 except WebDriverException:
                     return "Oops,Something Went Wrong!,Please Try again"            
