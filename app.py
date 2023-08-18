@@ -38,7 +38,7 @@ def loginFacebook():
         }
         thread = threading.Thread(target=thread_scrapper,args=(fb,credentials))
         thread.start()
-        return '<span class="badge badge-warning">Connecting To Facebook...</span>'
+        return fb.status
     return fb.status
 
 @app.route('/connect/instagram',methods=['POST'])
@@ -50,8 +50,8 @@ def loginInstagram():
         }
         thread = threading.Thread(target=thread_scrapper,args=(ig,credentials))
         thread.start()
-        return '<span class="badge badge-warning">Connecting To Instagram..</span>'
-    return fb.status
+        return ig.status
+    return ig.status
 @app.route('/connect/twitter',methods=['POST'])
 def loginTwitter():
     if twitter.connected == False:
@@ -61,7 +61,7 @@ def loginTwitter():
         }
         thread = threading.Thread(target=thread_scrapper,args=(twitter,credentials))
         thread.start()
-        return '<span class="badge badge-warning">Connecting To Twitter...</span>'
+        return twitter.status
     return twitter.status
 
 
@@ -90,15 +90,20 @@ def disconnectTwitter():
 
 @app.route('/getPosts/facebook')
 def getFacebookPosts():
+    if len(fb.posts) > 0:
+        return fb.posts
     return fb.getPosts()
    
 @app.route('/getPosts/instagram')
 def getInstagramPosts():
+    if len(ig.posts) > 0:
+        return ig.posts
     return ig.getPosts()
-
 
 @app.route('/getPosts/twitter')
 def getTwitterPosts():
+    if len(twitter.posts) > 0:
+        return twitter.posts
     return twitter.getPosts()
 
 @app.route('/getStatus/facebook')
@@ -112,6 +117,10 @@ def getInstagramStatus():
 @app.route('/getStatus/twitter')
 def getTwitterStatus():
     return twitter.status
+
+@app.route('/search')
+def search():
+    return
 
 if __name__ == '__main__':
     try:

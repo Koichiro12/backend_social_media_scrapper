@@ -13,6 +13,7 @@ import os
 import time
 from time import sleep
 import json
+import threading
 from .constans.twitter_constants import (
     TWITTER_BASE_URL,
     TWITTER_LOGIN_URL
@@ -26,11 +27,13 @@ class TwitterScrapper:
     wait = None
     username = None
     status = None
+    posts = []
+    thread = None
     def __init__(self,headless = False):
         self.options.set_capability('goog:loggingPrefs', { 'performance':'ALL' })
         self.options.headless = headless
         self.status = '<span class="badge badge-danger">Disconnected</span>'
-    
+        self.thread = threading.Thread(target=self.updatePosts)
     def run(self):
         service = ChromeService(executable_path=self.path)
         self.driver = webdriver.Chrome(options=self.options,service=service)
@@ -47,15 +50,15 @@ class TwitterScrapper:
         except NoSuchElementException:
             self.driver.get(TWITTER_BASE_URL)
             self.status = '<span class="badge badge-success">Connected</span>'
-            return '<span class="badge badge-success">Connected</span>'
+           
         finally:
             if os.path.exists(os.path.abspath("core\drivers\cookie\cookies_twitter.pkl")) == False:
-                return self.login(username, password)
+                self.login(username, password)
             else:
                 self.driver.refresh()
                 self.connected = True
                 self.status = '<span class="badge badge-success">Connected</span>'
-                return '<span class="badge badge-success">Connected</span>'
+               
     def login(self,username,password):
         self.driver.get(TWITTER_LOGIN_URL)
         try:
@@ -66,7 +69,7 @@ class TwitterScrapper:
                 p.send_keys(Keys.RETURN)
         except NoSuchElementException:
             self.status = '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
-            return '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
+           
         try:
             waits = WebDriverWait(self.driver,5)
             wait = waits.until(EC.visibility_of_element_located((By.XPATH,'//data-testid[@href="ocfEnterTextTextInput"]')))
@@ -86,7 +89,6 @@ class TwitterScrapper:
                 p.send_keys(Keys.RETURN)
         except NoSuchElementException:
             self.status = '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
-            return '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
         try:
             waits = WebDriverWait(self.driver,10)
             wait = waits.until(EC.visibility_of_element_located((By.XPATH,'//a[@href="/home"]')))
@@ -99,28 +101,34 @@ class TwitterScrapper:
                 pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_twitter.pkl"),"wb"))
                 self.driver.get(TWITTER_BASE_URL+self.username)
                 self.status = '<span class="badge badge-success">Connected As '+self.username+'</span>'
-                return '<span class="badge badge-success">Connected As '+self.username+'</span>'
+                thread = threading.Thread(target=self.getPost)
+                thread.start()
+               
         except NoSuchElementException:
             self.driver.quit()
             self.status = '<span class="badge badge-success">Can"t Connect, Please Check Your Username Or Password</span>'
-            return '<span class="badge badge-success">Can"t Connect, Please Check Your Username Or Password</span>'
+           
         except TimeoutException:
             self.driver.quit()
             self.status = '<span class="badge badge-success">TimeOut,Cant Connected</span>'
-            return "TimeOut,Can't Connected" 
+           
     def close(self):
         self.status = '<span class="badge badge-danger">Disconnecting...</span>'
         if self.driver == None:
             self.status = '<span class="badge badge-danger">Disconnected</span>'
-            return '<span class="badge badge-danger">Disconnected</span>'
-        os.unlink(os.path.abspath("core\drivers\cookie\cookies_twitter.pkl"))
+        if os.path.exists(os.path.abspath("core\drivers\cookie\cookies_twitter.pkl")):
+             os.unlink(os.path.abspath("core\drivers\cookie\cookies_twitter.pkl"))
         self.connected = False
         self.username = None
         self.posts = []
+        if self.thread.is_alive():
+            self.thread.join()
         self.driver.quit()
         self.status = '<span class="badge badge-danger">Disconnected</span>'
-        return '<span class="badge badge-danger">Disconnected</span>'
-    def getPosts(self):
+
+    def getPost(self):
+        if self.connected == False:
+            return "Not Connected"
         self.driver.get(TWITTER_BASE_URL+self.username)
         sleep(5)
         logs_raw = self.driver.get_log("performance")
@@ -132,11 +140,53 @@ class TwitterScrapper:
                 try:
                     data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
                     self.posts = json.loads(data['body'])
+                    self.thread.start()
                     return json.loads(data["body"])
                 except WebDriverException:
                     return "Oops,Something Went Wrong!,Please Try again"            
                 break
         return "Oops,Something Went Wrong!,Please Try again"
+
+    def getPosts(self):
+        if self.connected == False:
+            return "Not Connected"
+        self.driver.get(TWITTER_BASE_URL+self.username)
+        sleep(5)
+        logs_raw = self.driver.get_log("performance")
+        logs = [json.loads(lr["message"])["message"] for lr in logs_raw]
+        for log in filter(self.log_filter, logs):
+            request_id = log["params"]["requestId"]
+            resp_url = log["params"]["response"]["url"]
+            if "/UserTweets?variables=" in resp_url:
+                try:
+                    data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
+                    self.posts = json.loads(data['body'])
+                    if self.thread.is_alive() == False:
+                        self.thread.start()
+                    return json.loads(data["body"])
+                except WebDriverException:
+                    return "Oops,Something Went Wrong!,Please Try again"            
+                break
+        return "Oops,Something Went Wrong!,Please Try again"
+    def updatePosts(self):
+        while True:
+            if self.connected == False:
+                return "Not Connected"
+            self.driver.get(TWITTER_BASE_URL+self.username)
+            time.sleep(5)
+            logs_raw = self.driver.get_log("performance")
+            logs = [json.loads(lr["message"])["message"] for lr in logs_raw]
+            for log in filter(self.log_filter, logs):
+                request_id = log["params"]["requestId"]
+                resp_url = log["params"]["response"]["url"]
+                if "/UserTweets?variables=" in resp_url:
+                    try:
+                        data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
+                        self.posts = json.loads(data['body'])
+                    except WebDriverException:
+                        pass
+                    break
+            time.sleep(15)
     @staticmethod
     def log_filter(log_):
         return (
