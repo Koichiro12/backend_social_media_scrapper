@@ -161,8 +161,6 @@ class TwitterScrapper:
                 try:
                     data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
                     self.posts = json.loads(data['body'])
-                    if self.thread.is_alive() == False:
-                        self.thread.start()
                     return json.loads(data["body"])
                 except WebDriverException:
                     return "Oops,Something Went Wrong!,Please Try again"            
@@ -195,3 +193,21 @@ class TwitterScrapper:
             # and json
             and "json" in log_["params"]["response"]["mimeType"]
         )
+    def search(self,keywords):
+        data_entries = []
+        if len(self.posts) < 0:
+            self.getPosts()
+            return data_entries
+        result = self.posts
+        data = result['data']['user']['result']['timeline_v2']['timeline']['instructions'][2]
+        entries = data['entries']
+        for entry in entries:
+            if entry['content']['__typename'] != 'TimelineTimelineCursor':
+                if 'tweet' in entry['content']['clientEventInfo']['component']:
+                    if 'items' in entry['content']:
+                        for items in entry['content']['items']:
+                            data_entries.append(items['item']['itemContent']['tweet_results']['result'])
+                    if 'itemContent' in entry['content']:
+                        data_entries.append(entry['content']['itemContent']['tweet_results']['result'])
+        return data_entries
+           

@@ -118,9 +118,13 @@ def getInstagramStatus():
 def getTwitterStatus():
     return twitter.status
 
-@app.route('/search')
+@app.route('/search',methods=['POST'])
 def search():
-    return
+    result = []
+    if twitter.connected:
+        posts = twitter.search(request.form['q'])
+        result.append(posts)
+    return result
 
 if __name__ == '__main__':
     try:
