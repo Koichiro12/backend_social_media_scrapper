@@ -104,6 +104,7 @@ class FacebookScrapper:
                
 
     def getPost(self):
+        self.status = '<span class="badge badge-warning">Reading All Posts</span>'
         self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
         previous_height = self.driver.execute_script('return document.body.scrollHeight')
         while True:

@@ -125,24 +125,16 @@ def search():
     twitter_result = []
     fb_result = []
     ig_result = []
-
-    times = datetime.datetime().now()
-    scrape_time = times.strftime("%Y-%m-%d %H:%M:%S")
-
+    x = datetime.datetime.now()
+    scrape_time = x.strftime("%Y-%m-%d %H:%M:%S")
     keyword = request.form['q']
-
     if twitter.connected:
-        posts_twitter = twitter.search(keywords=keyword)
-        result.append(posts_twitter)
+        twitter_result = twitter.search(keywords=keyword)
     if ig.connected:
-        posts_ig = ig.search(keywords=keyword)
-        ig_result.append(posts_twitter)
+        ig_result = ig.search(keywords=keyword)
     if fb.connected:
-        posts_fb = fb.search(keywords=keyword)
-        fb_result.append(posts_fb)
-
+        fb_result = fb.search(keywords=keyword)
     result.append({"date_scrape":scrape_time,"facebook":fb_result,"twitter":twitter_result,"instagram":ig_result})
-
     return result
 
 if __name__ == '__main__':
