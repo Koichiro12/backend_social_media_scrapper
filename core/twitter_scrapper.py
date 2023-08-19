@@ -28,12 +28,10 @@ class TwitterScrapper:
     username = None
     status = None
     posts = []
-    thread = None
     def __init__(self,headless = False):
         self.options.set_capability('goog:loggingPrefs', { 'performance':'ALL' })
         self.options.headless = headless
         self.status = '<span class="badge badge-danger">Disconnected</span>'
-        self.thread = threading.Thread(target=self.updatePosts)
     def run(self):
         service = ChromeService(executable_path=self.path)
         self.driver = webdriver.Chrome(options=self.options,service=service)
@@ -97,10 +95,7 @@ class TwitterScrapper:
                 username = str(p.get_attribute('data-testid'))
                 self.username = username.replace("UserAvatar-Container-", "")
                 self.cookies = self.driver.get_cookies()
-                self.connected = True
                 pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_twitter.pkl"),"wb"))
-                self.driver.get(TWITTER_BASE_URL+self.username)
-                self.status = '<span class="badge badge-success">Connected As '+self.username+'</span>'
                 thread = threading.Thread(target=self.getPost)
                 thread.start()
                
@@ -121,16 +116,21 @@ class TwitterScrapper:
         self.connected = False
         self.username = None
         self.posts = []
-        if self.thread.is_alive():
-            self.thread.join()
         self.driver.quit()
         self.status = '<span class="badge badge-danger">Disconnected</span>'
 
     def getPost(self):
-        if self.connected == False:
-            return "Not Connected"
+        self.status = '<span class="badge badge-success">Reading All Post</span>'
         self.driver.get(TWITTER_BASE_URL+self.username)
-        sleep(5)
+        sleep(3)
+        previous_height = self.driver.execute_script('return document.body.scrollHeight')
+        while True:
+            self.driver.execute_script('window.scrollTo(0,document.body.scrollHeight)')
+            time.sleep(5)
+            new_height = self.driver.execute_script('return document.body.scrollHeight')
+            if new_height == previous_height:
+                break
+            previous_height = new_height
         logs_raw = self.driver.get_log("performance")
         logs = [json.loads(lr["message"])["message"] for lr in logs_raw]
         for log in filter(self.log_filter, logs):
@@ -139,13 +139,26 @@ class TwitterScrapper:
             if "/UserTweets?variables=" in resp_url:
                 try:
                     data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
-                    self.posts = json.loads(data['body'])
-                    self.thread.start()
-                    return json.loads(data["body"])
+                    jsonst = json.loads(data['body'])
+                    if 'errors' not in jsonst:
+                        data = jsonst['data']['user']['result']['timeline_v2']['timeline']['instructions']
+                        for datas in data:
+                            if datas['type'] == 'TimelineAddEntries':
+                                entries = datas['entries']
+                                for entry in entries:
+                                    if entry['content']['__typename'] != 'TimelineTimelineCursor':
+                                        if 'tweet' in entry['content']['clientEventInfo']['component']:
+                                            if 'items' in entry['content']:
+                                                for items in entry['content']['items']:
+                                                    if items['item']['itemContent']['tweet_results']['result'] not in self.posts:
+                                                        self.posts.append(items['item']['itemContent']['tweet_results']['result'])
+                                            if 'itemContent' in entry['content']:
+                                                if entry['content']['itemContent']['tweet_results']['result'] not in self.posts:
+                                                    self.posts.append(entry['content']['itemContent']['tweet_results']['result'])
                 except WebDriverException:
-                    return "Oops,Something Went Wrong!,Please Try again"            
-                break
-        return "Oops,Something Went Wrong!,Please Try again"
+                    pass
+        self.connected = True
+        self.status = '<span class="badge badge-success">Connected As '+self.username+'</span>'
 
     def getPosts(self):
         if self.connected == False:
@@ -160,31 +173,27 @@ class TwitterScrapper:
             if "/UserTweets?variables=" in resp_url:
                 try:
                     data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
-                    self.posts = json.loads(data['body'])
-                    return json.loads(data["body"])
+                    jsonst = json.loads(data['body'])
+                    if 'errors' not in jsonst:
+                        data = jsonst['data']['user']['result']['timeline_v2']['timeline']['instructions']
+                        for datas in data:
+                            if datas['type'] == 'TimelineAddEntries':
+                                entries = datas['entries']
+                                for entry in entries:
+                                    if entry['content']['__typename'] != 'TimelineTimelineCursor':
+                                        if 'tweet' in entry['content']['clientEventInfo']['component']:
+                                            if 'items' in entry['content']:
+                                                for items in entry['content']['items']:
+                                                    if items not in self.posts:
+                                                        self.posts.append(items['item']['itemContent']['tweet_results']['result'])
+                                            if 'itemContent' in entry['content']:
+                                                if items not in self.posts:
+                                                    self.posts.append(entry['content']['itemContent']['tweet_results']['result'])
+                    return self.posts
                 except WebDriverException:
                     return "Oops,Something Went Wrong!,Please Try again"            
                 break
         return "Oops,Something Went Wrong!,Please Try again"
-    def updatePosts(self):
-        while True:
-            if self.connected == False:
-                return "Not Connected"
-            self.driver.get(TWITTER_BASE_URL+self.username)
-            time.sleep(5)
-            logs_raw = self.driver.get_log("performance")
-            logs = [json.loads(lr["message"])["message"] for lr in logs_raw]
-            for log in filter(self.log_filter, logs):
-                request_id = log["params"]["requestId"]
-                resp_url = log["params"]["response"]["url"]
-                if "/UserTweets?variables=" in resp_url:
-                    try:
-                        data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
-                        self.posts = json.loads(data['body'])
-                    except WebDriverException:
-                        pass
-                    break
-            time.sleep(15)
     @staticmethod
     def log_filter(log_):
         return (
@@ -195,19 +204,11 @@ class TwitterScrapper:
         )
     def search(self,keywords):
         data_entries = []
+        result = []
         if len(self.posts) < 0:
             self.getPosts()
             return data_entries
-        result = self.posts
-        data = result['data']['user']['result']['timeline_v2']['timeline']['instructions'][2]
-        entries = data['entries']
-        for entry in entries:
-            if entry['content']['__typename'] != 'TimelineTimelineCursor':
-                if 'tweet' in entry['content']['clientEventInfo']['component']:
-                    if 'items' in entry['content']:
-                        for items in entry['content']['items']:
-                            data_entries.append(items['item']['itemContent']['tweet_results']['result'])
-                    if 'itemContent' in entry['content']:
-                        data_entries.append(entry['content']['itemContent']['tweet_results']['result'])
-        return data_entries
+        data_posts = self.posts
+        
+        return data_posts
            

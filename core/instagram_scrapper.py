@@ -35,13 +35,11 @@ class InstagramScrapper:
     username = None
     posts = []
     status = None
-    thread = None
     def __init__(self,headless=False):
         self.d['goog:loggingPrefs'] = { 'performance':'ALL' }
         self.options.set_capability('goog:loggingPrefs', { 'performance':'ALL' })
         self.options.headless = headless
         self.status = '<span class="badge badge-danger">Disconnected</span>'
-        self.thread = threading.Thread(target=self.updatePosts)
 
     def run(self):  
         service = ChromeService(executable_path=self.path)
@@ -83,13 +81,9 @@ class InstagramScrapper:
                 username = str(p.get_attribute('alt'))
                 self.username = username.replace("'s profile picture", "")
                 self.cookies = self.driver.get_cookies()
-                self.connected = True
                 pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_instagram.pkl"),"wb"))
-                self.driver.get(IG_BASE_URL+self.username+'/')
-                self.status = '<span class="badge badge-success">Connected As '+self.username+'</span>'
                 thread = threading.Thread(target=self.getPost)
                 thread.start()
-               
         except NoSuchElementException:
             self.driver.quit()
             self.status = '<span class="badge badge-success">Cant Connect, Please Check Your Username Or Password</span>'
@@ -99,25 +93,34 @@ class InstagramScrapper:
             self.status = '<span class="badge badge-success">Timeout,Please Try Again</span>'
            
     def getPost(self):
-        if self.connected == False:
-            return "Not Connected"
+        self.status = '<span class="badge badge-warning">Reading All Post</span>'
         self.driver.get(IG_BASE_URL+self.username+'/')
         sleep(3)
+        previous_height = self.driver.execute_script('return document.body.scrollHeight')
+        while True:
+            self.driver.execute_script('window.scrollTo(0,document.body.scrollHeight)')
+            time.sleep(5)
+            new_height = self.driver.execute_script('return document.body.scrollHeight')
+            if new_height == previous_height:
+                break
+            previous_height = new_height
         logs_raw = self.driver.get_log("performance")
         logs = [json.loads(lr["message"])["message"] for lr in logs_raw]
         for log in filter(self.log_filter, logs):
             request_id = log["params"]["requestId"]
             resp_url = log["params"]["response"]["url"]
-            if "/web_profile_info/?username=" in resp_url:
+            if "?count=12" in resp_url:
                 try:
                     data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
-                    self.posts = json.loads(data['body'])
-                    self.thread.start()
-                    return json.loads(data["body"])
+                    json_data = json.loads(data["body"])
+                    if 'items' in json_data:
+                        for item in json_data['items']:
+                            if item not in self.posts:
+                                self.posts.append(item)
                 except WebDriverException:
-                    return "Oops,Something Went Wrong!,Please Try again"            
-                break
-        return "Oops,Something Went Wrong!,Please Try again"  
+                    pass
+        self.connected = True
+        self.status = '<span class="badge badge-success">Connected As '+self.username+'</span>'
 
     def getPosts(self):
         if self.connected == False:
@@ -132,31 +135,16 @@ class InstagramScrapper:
             if "/web_profile_info/?username=" in resp_url:
                 try:
                     data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
-                    self.posts = json.loads(data['body'])
-                    return json.loads(data["body"])
+                    json_data = json.loads(data["body"])
+                    if 'items' in json_data:
+                        for item in json_data['items']:
+                            if item not in self.posts:
+                                self.posts.append(item)
+                    return self.posts
                 except WebDriverException:
                     return "Oops,Something Went Wrong!,Please Try again"            
                 break
         return "Oops,Something Went Wrong!,Please Try again"       
-    def updatePosts(self):
-        while True:
-            if self.connected == False:
-                return
-            self.driver.get(IG_BASE_URL+self.username+'/')
-            time.sleep(3)
-            logs_raw = self.driver.get_log("performance")
-            logs = [json.loads(lr["message"])["message"] for lr in logs_raw]
-            for log in filter(self.log_filter, logs):
-                request_id = log["params"]["requestId"]
-                resp_url = log["params"]["response"]["url"]
-                if "/web_profile_info/?username=" in resp_url:
-                    try:
-                        data =  self.driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': log["params"]["requestId"]})
-                        self.posts = json.loads(data['body'])
-                    except WebDriverException:
-                        pass
-                    break
-            time.sleep(15)
     @staticmethod
     def log_filter(log_):
         return (
@@ -175,9 +163,14 @@ class InstagramScrapper:
         self.connected = False
         self.username = None
         self.posts = []
-        if self.thread.is_alive():
-            self.thread.join()
         self.driver.quit()
         self.status = '<span class="badge badge-danger">Disconnected</span>'
        
-    
+    def search(self,keywords):
+        data_entries = []
+        result = []
+        if len(self.posts) < 0:
+            self.getPosts()
+            return data_entries
+        data_entries = self.posts
+        return data_entries

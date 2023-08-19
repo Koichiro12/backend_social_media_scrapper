@@ -5,6 +5,7 @@ from core.facebook_scrapper import FacebookScrapper
 from core.instagram_scrapper import InstagramScrapper
 from core.twitter_scrapper import TwitterScrapper
 import threading
+import datetime
 app = Flask(__name__)
 
 fb = FacebookScrapper()
@@ -121,9 +122,27 @@ def getTwitterStatus():
 @app.route('/search',methods=['POST'])
 def search():
     result = []
+    twitter_result = []
+    fb_result = []
+    ig_result = []
+
+    times = datetime.datetime().now()
+    scrape_time = times.strftime("%Y-%m-%d %H:%M:%S")
+
+    keyword = request.form['q']
+
     if twitter.connected:
-        posts = twitter.search(request.form['q'])
-        result.append(posts)
+        posts_twitter = twitter.search(keywords=keyword)
+        result.append(posts_twitter)
+    if ig.connected:
+        posts_ig = ig.search(keywords=keyword)
+        ig_result.append(posts_twitter)
+    if fb.connected:
+        posts_fb = fb.search(keywords=keyword)
+        fb_result.append(posts_fb)
+
+    result.append({"date_scrape":scrape_time,"facebook":fb_result,"twitter":twitter_result,"instagram":ig_result})
+
     return result
 
 if __name__ == '__main__':

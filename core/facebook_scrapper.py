@@ -39,11 +39,9 @@ class FacebookScrapper:
     connected = False
     posts = []
     status = None
-    thread = None
     def __init__(self,headless=False):
         self.options.headless = headless
-        self.status = '<span class="badge badge-danger">Disconnected</span>'
-        self.thread = threading.Thread(target=self.updatePosts)    
+        self.status = '<span class="badge badge-danger">Disconnected</span>' 
 
     def run(self):
         service = ChromeService(executable_path=self.path)
@@ -58,8 +56,7 @@ class FacebookScrapper:
              self.status = '<span class="badge badge-danger">Disconnected</span>'
         if os.path.exists(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl")):
              os.unlink(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"))
-        if self.thread.is_alive():
-            self.thread.join()
+
         self.connected = False
         self.posts = []
         self.status = '<span class="badge badge-danger">Disconnected</span>'
@@ -90,7 +87,7 @@ class FacebookScrapper:
         p.send_keys(password)
         p.send_keys(Keys.RETURN)
         try:
-            waits = WebDriverWait(self.driver,3)
+            waits = WebDriverWait(self.driver,10)
             waits.until(EC.visibility_of_element_located((By.XPATH,'//*[@class="storyStream"]')))
         except NoSuchElementException:
             self.status = '<span class="badge badge-danger">Disconnected</span>'
@@ -100,20 +97,13 @@ class FacebookScrapper:
         finally:
             try:
                 self.cookies = self.driver.get_cookies()
-                self.connected = True
                 pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_facebook.pkl"),"wb"))
-                self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
             finally:
-                self.status = '<span class="badge badge-success">Connected</span>'
                 thread = threading.Thread(target=self.getPost)
                 thread.start()
                
 
     def getPost(self):
-        if self.connected == False:
-            return "Not Connected"
-        if len(self.posts) > 0:
-            return self.posts
         self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
         previous_height = self.driver.execute_script('return document.body.scrollHeight')
         while True:
@@ -144,10 +134,8 @@ class FacebookScrapper:
                 pass
             except StaleElementReferenceException:
                 pass
-        # Post
-        result = self.posts
-        self.thread.start()
-        return result
+        self.status = '<span class="badge badge-success">Connected</span>'
+        self.connected = True
 
     def getPosts(self):
         if self.connected == False:
@@ -187,43 +175,14 @@ class FacebookScrapper:
         # Post
         result = self.posts
         return result
-    def updatePosts(self):
-        while True:
-            if self.connected == False:
-                time.sleep(5)
-                return
-            self.driver.get(FB_MOBILE_PROFILE_BASE_URL)
-            previous_height = self.driver.execute_script('return document.body.scrollHeight')
-            while True:
-                self.driver.execute_script('window.scrollTo(0,document.body.scrollHeight)')
-                time.sleep(5)
-                new_height = self.driver.execute_script('return document.body.scrollHeight')
-                if new_height == previous_height:
-                    break
-                previous_height = new_height
-            #Ekstrak data 
-            result = ""
-            link_feeds = self.driver.find_elements(By.XPATH,'//div[@class="story_body_container"]/div[1]/a') 
-            for i in range(len(link_feeds)):            
-                try:
-                    if(link_feeds[i].get_attribute('href') != None):
-                        link = str(link_feeds[i].get_attribute('href'))
-                        start = link.index("story.php?story_fbid=") + 21
-                        end = link.index("&id=")
-                        if "&substory_index=" in link[start:end]:
-                            end = link.index("&substory_index=")
-                        gen = fs.get_posts(
-                            post_urls=[link[start:end]],
-                            options={"comments": True, "progress": False}
-                        )
-                        post = next(gen)
-                        self.posts = []
-                        self.posts.append(post)
-                except IndexError:
-                    pass
-                except StaleElementReferenceException:
-                    pass
-            time.sleep(15)
+    def search(self,keywords):
+        data_entries = []
+        result = []
+        if len(self.posts) < 0:
+            self.getPosts()
+            return data_entries
+        data_posts = self.posts
+        return data_posts
         
 
             
