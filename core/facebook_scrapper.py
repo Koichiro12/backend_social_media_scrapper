@@ -86,7 +86,7 @@ class FacebookScrapper:
         p = self.driver.find_element(By.NAME, "pass")
         p.send_keys(password)
         p.send_keys(Keys.RETURN)
-        time.sleep(5)
+        time.sleep(3)
         try:
             waits = WebDriverWait(self.driver,30)
             self.driver.get(FB_BASE_URL)
