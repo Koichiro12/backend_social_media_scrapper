@@ -6,6 +6,7 @@ from core.instagram_scrapper import InstagramScrapper
 from core.twitter_scrapper import TwitterScrapper
 import threading
 import datetime
+import json
 app = Flask(__name__)
 
 fb = FacebookScrapper()
@@ -126,15 +127,24 @@ def search():
     fb_result = []
     ig_result = []
     x = datetime.datetime.now()
-    scrape_time = x.strftime("%Y-%m-%d %H:%M:%S")
+    scrape_time = x.strftime("%Y-%m-%d")
     keyword = request.form['q']
     if twitter.connected:
-        twitter_result = twitter.search(keywords=keyword)
+        if keyword != None:            
+            twitter_result = twitter.search(keywords=keyword)
+        else:
+            twitter_result = twitter.posts
     if ig.connected:
-        ig_result = ig.search(keywords=keyword)
+        if keyword != None:
+            ig_result = ig.search(keywords=keyword)
+        else:            
+            ig_result = ig.posts
     if fb.connected:
-        fb_result = fb.search(keywords=keyword)
-    result.append({"date_scrape":scrape_time,"facebook":fb_result,"twitter":twitter_result,"instagram":ig_result})
+        if keyword != None:
+            fb_result = fb.search(keywords=keyword)
+        else:
+            fb_result = fb.posts
+    result = {"date_scrape":scrape_time,"facebook":fb_result,"twitter":twitter_result,"instagram":ig_result}
     return result
 
 if __name__ == '__main__':

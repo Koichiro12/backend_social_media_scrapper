@@ -173,4 +173,7 @@ class InstagramScrapper:
             self.getPosts()
             return data_entries
         data_entries = self.posts
-        return data_entries
+        for data in data_entries:
+            if keywords in data['caption']['text']:
+                result.append(data)
+        return result

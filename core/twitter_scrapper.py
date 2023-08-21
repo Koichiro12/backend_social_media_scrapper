@@ -66,6 +66,10 @@ class TwitterScrapper:
                 p.send_keys(username)
                 p.send_keys(Keys.RETURN)
         except NoSuchElementException:
+            self.driver.quit()
+            self.status = '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
+        except TimeoutException:
+            self.driver.quit()
             self.status = '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
            
         try:
@@ -210,5 +214,8 @@ class TwitterScrapper:
             return data_entries
         data_posts = self.posts
         
-        return data_posts
+        for data in data_posts:
+            if keywords in data['legacy']['full_text']:
+                result.append(data)
+        return result
            

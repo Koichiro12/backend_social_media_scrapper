@@ -86,14 +86,17 @@ class FacebookScrapper:
         p = self.driver.find_element(By.NAME, "pass")
         p.send_keys(password)
         p.send_keys(Keys.RETURN)
+        time.sleep(5)
         try:
-            waits = WebDriverWait(self.driver,10)
-            waits.until(EC.visibility_of_element_located((By.XPATH,'//*[@class="storyStream"]')))
+            waits = WebDriverWait(self.driver,30)
+            self.driver.get(FB_BASE_URL)
+            waits.until(EC.visibility_of_element_located((By.XPATH,'//div[@role="feed"]')))
         except NoSuchElementException:
             self.status = '<span class="badge badge-danger">Disconnected</span>'
             self.driver.quit()
         except TimeoutException:
-            pass
+            self.status = '<span class="badge badge-danger">Timeout</span>'
+            self.driver.quit()
         finally:
             try:
                 self.cookies = self.driver.get_cookies()
@@ -183,7 +186,10 @@ class FacebookScrapper:
             self.getPosts()
             return data_entries
         data_posts = self.posts
-        return data_posts
+        for data in data_posts:
+            if keywords in data['text']:
+                result.append(data)
+        return result
         
 
             
