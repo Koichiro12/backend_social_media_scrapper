@@ -67,10 +67,10 @@ class TwitterScrapper:
                 p.send_keys(Keys.RETURN)
         except NoSuchElementException:
             self.driver.quit()
-            self.status = '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
+            self.status = '<span class="badge badge-warning">Timeout</span>'
         except TimeoutException:
             self.driver.quit()
-            self.status = '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
+            self.status = '<span class="badge badge-warning">Timeout</span>'
            
         try:
             waits = WebDriverWait(self.driver,5)
@@ -90,7 +90,7 @@ class TwitterScrapper:
                 p.send_keys(password)
                 p.send_keys(Keys.RETURN)
         except NoSuchElementException:
-            self.status = '<span class="badge badge-warning">"TimeOut,Can"t Connected"</span>'
+            self.status = '<span class="badge badge-warning">Timeout</span>'
         try:
             waits = WebDriverWait(self.driver,10)
             wait = waits.until(EC.visibility_of_element_located((By.XPATH,'//a[@href="/home"]')))
@@ -124,7 +124,7 @@ class TwitterScrapper:
         self.status = '<span class="badge badge-danger">Disconnected</span>'
 
     def getPost(self):
-        self.status = '<span class="badge badge-success">Reading All Post</span>'
+        self.status = '<span class="badge badge-success">Reading All Posts</span>'
         self.driver.get(TWITTER_BASE_URL+self.username)
         sleep(3)
         previous_height = self.driver.execute_script('return document.body.scrollHeight')
@@ -213,7 +213,8 @@ class TwitterScrapper:
             self.getPosts()
             return data_entries
         data_posts = self.posts
-        
+        if keywords is None:
+            return data_posts
         for data in data_posts:
             if keywords in data['legacy']['full_text']:
                 result.append(data)

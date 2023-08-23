@@ -16,6 +16,7 @@ import pickle
 import os
 import time
 import threading
+import instaloader
 from .constans.instagram_constants import (
    IG_BASE_URL
 )
@@ -34,12 +35,17 @@ class InstagramScrapper:
     connected = False
     username = None
     posts = []
+    profile = None
+    loader = None
     status = None
     def __init__(self,headless=False):
         self.d['goog:loggingPrefs'] = { 'performance':'ALL' }
         self.options.set_capability('goog:loggingPrefs', { 'performance':'ALL' })
         self.options.headless = headless
         self.status = '<span class="badge badge-danger">Disconnected</span>'
+        self.posts = []
+        self.loader = instaloader.Instaloader()
+        self.profile = None
 
     def run(self):  
         service = ChromeService(executable_path=self.path)
@@ -81,6 +87,15 @@ class InstagramScrapper:
                 username = str(p.get_attribute('alt'))
                 self.username = username.replace("'s profile picture", "")
                 self.cookies = self.driver.get_cookies()
+                csrf_token = ""
+                session_id = ""
+                for cookie in self.cookies:
+                    if cookie['name'] == 'csrftoken':
+                        csrf_token = cookie['value']
+                    if cookie['name'] == 'sessionid':
+                        session_id = cookie['value']
+                self.loader.load_session(self.username,{"sessionid": session_id, "csrftoken": csrf_token})
+                self.profile = instaloader.Profile.from_username(self.loader.context,self.username)
                 pickle.dump(self.driver.get_cookies(),open(os.path.abspath("core\drivers\cookie\cookies_instagram.pkl"),"wb"))
                 thread = threading.Thread(target=self.getPost)
                 thread.start()
@@ -90,10 +105,10 @@ class InstagramScrapper:
            
         except TimeoutException:
             self.driver.quit()
-            self.status = '<span class="badge badge-success">Timeout,Please Try Again</span>'
+            self.status = '<span class="badge badge-success">Timeout</span>'
            
     def getPost(self):
-        self.status = '<span class="badge badge-warning">Reading All Post</span>'
+        self.status = '<span class="badge badge-warning">Reading All Posts</span>'
         self.driver.get(IG_BASE_URL+self.username+'/')
         sleep(3)
         previous_height = self.driver.execute_script('return document.body.scrollHeight')
@@ -165,7 +180,7 @@ class InstagramScrapper:
         self.posts = []
         self.driver.quit()
         self.status = '<span class="badge badge-danger">Disconnected</span>'
-       
+
     def search(self,keywords):
         data_entries = []
         result = []
@@ -173,7 +188,9 @@ class InstagramScrapper:
             self.getPosts()
             return data_entries
         data_entries = self.posts
+        if keywords is None:
+            return data_entries
         for data in data_entries:
-            if keywords in data['caption']['text']:
+             if data['caption'] != None and keywords in data['caption']['text']:
                 result.append(data)
         return result

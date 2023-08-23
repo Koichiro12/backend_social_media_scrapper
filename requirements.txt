@@ -1,4 +1,5 @@
 selenium==4.11.0
 beautifulsoup4==4.12.2
 facebook-scraper=0.2.59
+instaloader=4.10
 pandas==2.0.3
