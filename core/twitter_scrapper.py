@@ -213,7 +213,7 @@ class TwitterScrapper:
             self.getPosts()
             return data_entries
         data_posts = self.posts
-        if keywords is None:
+        if keywords == '' or keywords is None:
             return data_posts
         for data in data_posts:
             if keywords in data['legacy']['full_text']:

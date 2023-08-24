@@ -188,7 +188,7 @@ class InstagramScrapper:
             self.getPosts()
             return data_entries
         data_entries = self.posts
-        if keywords is None:
+        if keywords == '' or keywords is None:
             return data_entries
         for data in data_entries:
              if data['caption'] != None and keywords in data['caption']['text']:
