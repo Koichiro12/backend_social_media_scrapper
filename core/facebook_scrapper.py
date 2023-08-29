@@ -124,16 +124,17 @@ class FacebookScrapper:
             try:
                 if(link_feeds[i].get_attribute('href') != None):
                     link = str(link_feeds[i].get_attribute('href'))
-                    start = link.index("story.php?story_fbid=") + 21
-                    end = link.index("&id=")
-                    if "&substory_index=" in link[start:end]:
-                        end = link.index("&substory_index=")
-                    gen = fs.get_posts(
-                        post_urls=[link[start:end]],
-                        options={"comments": True, "progress": False}
-                    )
-                    post = next(gen)
-                    self.posts.append(post)
+                    if "story.php?story_fbid=" in link and "&id=" in link:
+                        start = link.index("story.php?story_fbid=") + 21
+                        end = link.index("&id=")
+                        if "&substory_index=" in link[start:end]:
+                            end = link.index("&substory_index=")
+                        gen = fs.get_posts(
+                            post_urls=[link[start:end]],
+                            options={"comments": True, "progress": False}
+                        )
+                        post = next(gen)
+                        self.posts.append(post)
             except IndexError:
                 pass
             except StaleElementReferenceException:
